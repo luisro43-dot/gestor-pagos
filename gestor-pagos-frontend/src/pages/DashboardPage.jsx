@@ -53,12 +53,36 @@ const DashboardPage = () => {
   const handleAddPayment = async (paymentData) => {
     setIsLoading(true);
     try {
-      await createPayment(paymentData);
+      // Busca si el servicio ya existe
+      let service = services.find(s => s.nombre_servicio.toLowerCase() === paymentData.nombre_servicio.toLowerCase());
+      let serviceId;
+
+      // Si no existe, créalo
+      if (!service) {
+        const newServiceResponse = await createService({ nombre_servicio: paymentData.nombre_servicio });
+        serviceId = newServiceResponse.data.id;
+        // Opcional: Actualizar el estado de servicios para que el nuevo aparezca en la lista
+        setServices([newServiceResponse.data, ...services]);
+      } else {
+        serviceId = service.id;
+      }
+
+      // Prepara los datos del pago con el ID del servicio correcto
+      const newPaymentData = {
+        ...paymentData,
+        servicio_id: serviceId,
+      };
+      delete newPaymentData.nombre_servicio; // No es parte del modelo de pago
+
+      await createPayment(newPaymentData);
+
+      // Recarga los pagos para mostrar el nuevo
       const paymentsResponse = await getPayments();
       setPayments(paymentsResponse.data);
+
     } catch (err) {
       setError('No se pudo registrar el pago.');
-      console.error('Error al registrar pago:', err); // CORRECCIÓN
+      console.error('Error al registrar pago:', err);
     } finally {
       setIsLoading(false);
     }
